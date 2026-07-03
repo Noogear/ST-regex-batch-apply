@@ -1,0 +1,14 @@
+{
+    "display_name": "历史消息工具",
+    "loading_order": 1,
+    "requires": [],
+    "dependencies": ["regex"],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Noogear",
+    "version": "1.0.0",
+    "hooks": {
+        "activate": "init"
+    }
+}
