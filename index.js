@@ -42,6 +42,9 @@ async function doBatchApply(dryRun) {
         const scripts = engine.getRegexScripts({ allowedOnly: true })?.filter(s => !s.disabled);
         if (!scripts?.length) { toastr.warning('无启用的正则脚本'); return; }
 
+        const scriptStats = new Map();
+        for (const s of scripts) scriptStats.set(s.scriptName, 0);
+
         let modified = 0;
         for (let i = 0; i < chat.length; i++) {
             const mes = chat[i];
@@ -53,11 +56,13 @@ async function doBatchApply(dryRun) {
 
             for (const s of scripts) {
                 if (!s.placement?.includes(placement)) continue;
+                const before = text;
                 const result = engine.getRegexedString(text, placement, {
                     characterOverride: mes.extra?.type === 'narrator' ? undefined : mes.name,
                     isEdit: false, isMarkdown: false, isPrompt: false,
                 });
                 if (typeof result === 'string') text = result;
+                if (text !== before) scriptStats.set(s.scriptName, (scriptStats.get(s.scriptName) || 0) + 1);
             }
 
             if (text !== originalText) {
@@ -72,8 +77,19 @@ async function doBatchApply(dryRun) {
         }
 
         if (dryRun) {
-            if (modified > 0) toastr.info(`[预览] 将修改 ${modified} 条消息`);
-            else toastr.info('[预览] 无需修改');
+            const usedScripts = [...scriptStats.entries()].filter(([, count]) => count > 0);
+            if (usedScripts.length > 0) {
+                let msg = `将修改 <b>${modified}</b> 条消息<br><br>起作用的正则：`;
+                for (const [name, count] of usedScripts) msg += `<br>· ${name}（<b>${count}</b> 条）`;
+                const popup = await getPopup();
+                if (popup) {
+                    await popup.Popup.show.text('预览结果', msg);
+                } else {
+                    toastr.info(`[预览] 将修改 ${modified} 条消息`);
+                }
+            } else {
+                toastr.info('[预览] 无需修改');
+            }
         } else if (modified > 0) {
             try {
                 await saveChatConditional();
